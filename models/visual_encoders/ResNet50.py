@@ -83,7 +83,9 @@ class ClipResNet50(nn.Module):
         self._replace_maxpool_with_blur_pool(base_resnet50)
         self._replace_downsampling_with_blur_pool(base_resnet50)
         self._replace_global_avg_pool_with_attention_pooling(base_resnet50)
+        self.final_projection = nn.Linear(2048, self.output_dim)
         self.modified_resnet50 = base_resnet50
+        
 
     def _replace_initial_conv(self, base_resnet50):
         self.blur1 = BlurPool(3)
@@ -135,5 +137,6 @@ class ClipResNet50(nn.Module):
         x = self.modified_resnet50.layer3(x)
         x = self.modified_resnet50.layer4(x)
         x = self.attnpool(x)
+        x = self.final_projection(x)
         return x
 
