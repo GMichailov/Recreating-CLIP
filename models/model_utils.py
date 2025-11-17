@@ -1,17 +1,9 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from transformers import AutoTokenizer, AutoModel
 
-def use_flash_attention(model):
-    pass
+def get_text_transformer_model(name, attn_implementation="spda"):
+    tokenizer = AutoTokenizer.from_pretrained(name)
+    model = AutoModel.from_pretrained(name, attn_implementation=attn_implementation)
+    return tokenizer, model
 
-def _replace_mha_with_scaled_dot_product_attention(mha: nn.MultiheadAttention):
-    def flash_forward(Q, K, V, key_padding_mask=None, need_weights=False, attn_mask=None):
-        batch_size, seq_len, d_model = Q.shape
-        
-
-def he_init(layer : nn.Module):
-    pass
-
-def kaiming_init(layer):
-    pass
+def get_vision_transformer_model(name, attn_implementation="spda"):
+    return AutoModel.from_pretrained(name, attn_implementation=attn_implementation)
