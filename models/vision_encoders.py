@@ -1,7 +1,6 @@
 import timm
 import torch.nn as nn
-
-from model_utils import he_init
+from models.model_utils import he_init
 
 class ClipVitTiny(nn.Module):
     def __init__(self, output_dim):
