@@ -1,6 +1,8 @@
 import timm
 import torch.nn as nn
 
+from model_utils import he_init
+
 class ClipVitTiny(nn.Module):
     def __init__(self, output_dim):
         super().__init__()
@@ -10,6 +12,7 @@ class ClipVitTiny(nn.Module):
             num_classes=0     # removes classifier, outputs CLS token
         )
         self.final_proj = nn.Linear(192, output_dim)
+        he_init(self.final_proj)
 
     def forward(self, x):
         features = self.model(x)
@@ -25,6 +28,7 @@ class ClipVitSmall(nn.Module):
             num_classes=0
         )
         self.final_proj = nn.Linear(384, output_dim)
+        he_init(self.final_proj)
 
     def forward(self, x):
         features = self.model(x)

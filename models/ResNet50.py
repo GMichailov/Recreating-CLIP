@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
+from models.model_utils import he_init
 
 """
 Explanation of changes.
@@ -51,6 +52,10 @@ class AttentionPool2d(nn.Module):
         self.Wk = nn.Linear(embed_dim, embed_dim)
         self.Wv = nn.Linear(embed_dim, embed_dim)
         self.c_proj = nn.Linear(embed_dim, embed_dim)
+        he_init(self.Wq)
+        he_init(self.Wk)
+        he_init(self.Wv)
+        he_init(self.c_proj)
         self.num_heads = num_heads
         self.attn_dropout = nn.Dropout(dropout)
 
@@ -84,9 +89,9 @@ class ClipResNet50(nn.Module):
         self._replace_downsampling_with_blur_pool(base_resnet50)
         self._replace_global_avg_pool_with_attention_pooling(base_resnet50)
         self.final_projection = nn.Linear(2048, self.output_dim)
+        he_init(self.final_projection)
         self.modified_resnet50 = base_resnet50
         
-
     def _replace_initial_conv(self, base_resnet50):
         self.blur1 = BlurPool(3)
         base_resnet50.conv1 = nn.Conv2d(
@@ -96,6 +101,7 @@ class ClipResNet50(nn.Module):
             stride=1, padding=3, 
             bias=False
         )
+        he_init(base_resnet50.conv1)
 
     def _replace_downsampling_with_blur_pool(self, base_resnet50):
         for layer_name in ["layer1", "layer2", "layer3", "layer4"]:
