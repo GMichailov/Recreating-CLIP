@@ -7,10 +7,10 @@ class ClipDistilBert(nn.Module):
         self.tokenizer, self.model = get_text_transformer_model("distilbert/distilbert-base-uncased")
         self.final_proj = nn.Linear(768, output_dim)
 
-    def forward(self, x):
-        x = self.model(x)
-        x = self.final_proj(x)
-        return x
+    def forward(self, **x):
+        outputs = self.model(**x)
+        cls = outputs.last_hidden_state[:, 0]
+        return self.final_proj(cls)
     
 class ClipMiniLM(nn.Module):
     def __init__(self, output_dim):
@@ -18,7 +18,7 @@ class ClipMiniLM(nn.Module):
         self.tokenizer, self.model = get_text_transformer_model("sentence-transformers/all-MiniLM-L6-v2")
         self.final_proj = nn.Linear(384, output_dim)
 
-    def forward(self, x):
-        x = self.model(x)
-        x = self.final_proj(x)
-        return x
+    def forward(self, **x):
+        outputs = self.model(**x)
+        cls = outputs.last_hidden_state[:, 0]
+        return self.final_proj(cls)
