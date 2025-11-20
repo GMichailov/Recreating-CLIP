@@ -27,12 +27,12 @@ class CustomDataLoader:
     
     async def _get_batch_async(self, instances):
         raw_data = list(islice(self.dataset, instances * 2))
-        raw_data = [(x["url"], x["captions"]) for x in raw_data]
+        raw_data = [(x["url"], x["caption"]) for x in raw_data]
         batch = await self._process_raw_batch(raw_data)
         self.ready_data.extend(batch)
         while len(self.ready_data) < instances:
             raw_data = list(islice(self.dataset, instances * 2))
-            raw_data = [(x["url"], x["captions"]) for x in raw_data]
+            raw_data = [(x["url"], x["caption"]) for x in raw_data]
             batch = await self._process_raw_batch(raw_data)
             self.ready_data.extend(batch)
             print(f"Iterating again. Only {len(self.ready_data)} instances and need {instances} instances.")
@@ -42,7 +42,8 @@ class CustomDataLoader:
         img_tensors = torch.stack([img for (img, tok_dict) in final], dim=0).to(self.device)
         text_tensors = self._collate_token_dicts([tok_dict for (img, tok_dict) in final])
 
-    
+        return img_tensors, text_tensors
+
     async def _process_raw_batch(self, batch):
         resolve_imgs_task = asyncio.create_task(self._resolve_images(batch))
         tokenize_task = asyncio.create_task(self._tokenize_captions(batch))
@@ -55,7 +56,8 @@ class CustomDataLoader:
         return processed
 
     async def _resolve_images(self, batch):
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(limit=1024)
+        async with aiohttp.ClientSession(connector=connector) as session:
             tasks = [
                 self._fetch(session, url) for url, _ in batch
             ]
@@ -107,5 +109,18 @@ class CustomDataLoader:
         # Tokenize caption returns a list of these.
         batch = {}
         for key in token_dicts[0].keys():
-            stacked = torch.cat([d[key] for d in token_dicts], dim=0).to(self.device) # turn into (batch, L)
+            batch[key] = torch.cat([d[key] for d in token_dicts], dim=0).to(self.device) # turn into (batch, L)
         return batch
+
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from models.model_utils import get_text_transformer_model
+import time
+
+tokenizer, _ = get_text_transformer_model("sentence-transformers/all-MiniLM-L6-v2")
+
+dataloader = CustomDataLoader(tokenizer)
+start = time.time()
+i, t = dataloader.get_batch(512)
+end = time.time()
+print(end - start)
