@@ -56,21 +56,13 @@ class CustomDataLoader:
         return processed
 
     async def _resolve_images(self, batch):
-        connector = aiohttp.TCPConnector(limit=1024)
+        connector = aiohttp.TCPConnector(limit=256)
         async with aiohttp.ClientSession(connector=connector) as session:
             tasks = [
-                self._fetch(session, url) for url, _ in batch
+                self._fetch_and_decode(session, url) for url, _ in batch
             ]
-            byte_results = await asyncio.gather(*tasks)
-        tensors = []
-        for bytestr in byte_results:
-            if bytestr is None:
-                tensors.append(None)
-                continue
-            tensor = self._decode_to_tensor(bytestr)
-            tensors.append(tensor)
-        return tensors
-
+            return await asyncio.gather(*tasks)
+        
     def _decode_to_tensor(self, image_bytes: bytes):
         try:
             img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -79,30 +71,38 @@ class CustomDataLoader:
         except Exception:
             return None
 
-    async def _fetch(self, session, url):
+    async def _fetch_and_decode(self, session, url):
         try:
             async with session.get(url, timeout=5) as resp:
                 if resp.status != 200:
                     return None
                 data = await resp.read()
-                return data
         except Exception:
             return None
+        return await asyncio.to_thread(self._decode_to_tensor, data)
 
     async def _tokenize_captions(self, batch):
+        captions = [c for (_, c) in batch]
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
+        token_batch = await loop.run_in_executor(
             None,
-            lambda: [
-                self.tokenizer(
-                    caption,
-                    padding="max_length",
-                    truncation=True,
-                    max_length=32,
-                    return_tensors="pt"
-                ) for (_, caption) in batch
-            ]
+            lambda: self.tokenizer(
+                captions,
+                padding="max_length",
+                truncation=True,
+                max_length=32,
+                return_tensors="pt"
+            )
         )
+
+        out = []
+        for i in range(len(captions)):
+            out.append({
+                "input_ids": token_batch["input_ids"][i].unsqueeze(0),
+                "attention_mask": token_batch["attention_mask"][i].unsqueeze(0)
+            })
+
+        return out
     
     def _collate_token_dicts(self, token_dicts):
         # Tokenizer is outputing {'input_ids':(1,L), 'attention_mask': (1,L)}
