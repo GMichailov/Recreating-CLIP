@@ -41,19 +41,15 @@ class DataDownloader:
         return asyncio.run(self._get_dataset_async())
     
     async def _get_dataset_async(self):
-        print("Checkpoint 1")
         connector = aiohttp.TCPConnector(limit=256)
         async with aiohttp.ClientSession(connector=connector) as session:
             while self.processed < self.total_size:
                 raw_data = list(islice(self.dataset_iterator, self.batch_size))
                 raw_data = [(x["url"], x["caption"]) for x in raw_data] # type: ignore
-                print("Received batch raw data")
                 batch = await self._resolve_images(session, raw_data)
-                print("Image urls resolved")
                 self._save_batch(batch)
 
     async def _resolve_images(self, session, batch):
-        print("Sending out url fetching tasks")
         tasks = [
             self._fetch_and_process(session, url, caption) for url, caption in batch
         ]
@@ -77,14 +73,9 @@ class DataDownloader:
             return None
 
     def _save_batch(self, batch):
-        print("saving batch started")
         batch = self._remove_missing_images_add_identifier(batch)
-        print("Done removing dead images.")
-        print(f"Images left: {len(batch)}")
         self._save_imgs(batch)
-        print("Images saved in dir")
         self._save_to_csv(batch)
-        print("data saved into csv")
         self.processed += len(batch)
         
     def _save_to_csv(self, batch):
